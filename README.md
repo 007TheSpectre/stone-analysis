@@ -1,10 +1,9 @@
-> **Epitech project — `G-CNA-400` (`stoneanalysis`)**
+> **Epitech · `G-CNA-400` ("stoneanalysis")** — solo project.
 >
-> Built with .
-> Solo project - I wrote everything here.
+> **My role:** I designed and wrote all of it.
 >
-> This is my own copy of the assignment repository, published here as a
-> portfolio piece. The original repository is private.
+> This repository is my own copy of the assignment, published as a portfolio
+> piece. The original repository is private.
 
 ---
 
