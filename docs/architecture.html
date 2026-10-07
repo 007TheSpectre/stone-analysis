@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Architecture &mdash; stone_analysis</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0d1117;
+      color: #e6edf3;
+      padding: 2rem 1rem;
+    }
+
+    header {
+      max-width: 900px;
+      margin: 0 auto 2.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    header a {
+      color: #58a6ff;
+      text-decoration: none;
+      font-size: 0.875rem;
+    }
+
+    header a:hover { text-decoration: underline; }
+
+    header h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+    }
+
+    header .sep { color: #484f58; }
+
+    .section {
+      max-width: 900px;
+      margin: 0 auto 3rem;
+    }
+
+    .section h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 1px solid #21262d;
+    }
+
+    .diagram-box {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 2rem;
+      overflow-x: auto;
+    }
+
+    .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <a href="./">&#8592; Back</a>
+    <span class="sep">|</span>
+    <h1>Architecture Diagrams</h1>
+  </header>
+
+  <div class="section">
+    <h2>Module Dependencies</h2>
+    <div class="diagram-box">
+      <pre class="mermaid">
+graph TD
+    MAIN["main.cpp"]
+
+    subgraph WAV ["wav — I/O"]
+        WR["WavReader"]
+        WW["WavWriter"]
+    end
+
+    subgraph DFT ["dft — Signal Processing"]
+        CPX["Complex"]
+        DFT_["Dft (FFT)"]
+        IDFT["Idft (IFFT)"]
+    end
+
+    subgraph STEG ["steg — Steganography"]
+        CM["CharMap"]
+        CYP["Cypher"]
+        DEC["Decypher"]
+    end
+
+    subgraph ANA ["analyze"]
+        ANZ["Analyzer"]
+    end
+
+    MAIN --> WR
+    MAIN --> WW
+    MAIN --> CYP
+    MAIN --> DEC
+    MAIN --> ANZ
+
+    CYP --> DFT_
+    CYP --> IDFT
+    CYP --> CM
+    DEC --> DFT_
+    DEC --> CM
+    ANZ --> DFT_
+
+    DFT_ --> CPX
+    IDFT --> CPX
+    CM --> CPX
+      </pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Cypher Flow</h2>
+    <div class="diagram-box">
+      <pre class="mermaid">
+sequenceDiagram
+    participant CLI as main.cpp
+    participant WR as WavReader
+    participant CM as CharMap
+    participant CYP as Cypher
+    participant DFT as Dft
+    participant IDFT as Idft
+    participant WW as WavWriter
+
+    CLI->>WR: open in_file
+    WR-->>CLI: samples, rawHeader
+
+    CLI->>CM: normalizeMessage(message)
+    CM-->>CLI: lowercase, validated
+
+    loop for each character window
+        CLI->>CYP: encode(samples, message)
+        CYP->>DFT: transform(window)
+        DFT-->>CYP: spectrum X[k]
+        CYP->>CM: addSinusoid(spectrum, bin, magnitude)
+        CYP->>IDFT: transform(spectrum)
+        IDFT-->>CYP: real samples clamped to int16
+    end
+
+    CYP-->>CLI: encoded samples
+    CLI->>WW: write(out_file, rawHeader, encoded)
+      </pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Decypher Flow</h2>
+    <div class="diagram-box">
+      <pre class="mermaid">
+sequenceDiagram
+    participant CLI as main.cpp
+    participant WR as WavReader
+    participant DEC as Decypher
+    participant DFT as Dft
+    participant CM as CharMap
+
+    CLI->>WR: open in_file
+    WR-->>CLI: samples
+
+    loop for each 2400-sample window
+        CLI->>DEC: decode(samples)
+        DEC->>DFT: transform(window)
+        DFT-->>DEC: spectrum X[k]
+        DEC->>DEC: find peak bin in 1001..1037
+        alt peak >= DETECT_THRESHOLD
+            DEC->>CM: binToChar(peak_bin)
+            CM-->>DEC: character
+        else bin == ULTRASOUND_BASE_BIN
+            DEC->>DEC: stop (terminator)
+        end
+    end
+
+    DEC-->>CLI: decoded message string
+      </pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Steganography Design</h2>
+    <div class="diagram-box">
+      <pre class="mermaid">
+graph TD
+    A["Message text"] --> B["normalizeMessage()\nlowercase + validate"]
+    B --> C["Split into characters"]
+    C --> D["For each character:\ncharToBin(c) → bin k"]
+    D --> E["Slice 2400 samples\n~50 ms window"]
+    E --> F["DFT: time → frequency"]
+    F --> G["addSinusoid(X, bin, 10000)\nX[k] += magnitude * exp(i*phase)\nX[N-k] = conj(X[k])"]
+    G --> H["IDFT: frequency → time"]
+    H --> I["Clamp to int16\nwrite window"]
+    C --> J["Append terminator window\nbin = ULTRASOUND_BASE_BIN (1000)"]
+      </pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Bin Mapping</h2>
+    <div class="diagram-box">
+      <pre class="mermaid">
+graph LR
+    TERM["terminator"] --> B1000["bin 1000\n~20.0 kHz"]
+    SPACE["' '"] --> B1001["bin 1001\n~20.02 kHz"]
+    DIGITS["'0' – '9'"] --> B1002["bins 1002 – 1011\n~20.04 – 20.22 kHz"]
+    LETTERS["'a' – 'z'"] --> B1012["bins 1012 – 1037\n~20.24 – 20.74 kHz"]
+      </pre>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>CI/CD Pipeline</h2>
+    <div class="diagram-box">
+      <pre class="mermaid">
+graph LR
+    Build["Build"]
+    Tests["Tests and Coverage"]
+    Valgrind["Valgrind"]
+    Pages["GitHub Pages"]
+
+    Build --> Tests
+    Build --> Valgrind
+    Tests --> Pages
+      </pre>
+    </div>
+  </div>
+
+  <script>
+    mermaid.initialize({ startOnLoad: true, theme: 'dark', securityLevel: 'loose' });
+  </script>
+</body>
+</html>

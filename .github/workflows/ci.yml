@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install compiler
+        run: sudo apt-get update && sudo apt-get install -y g++
+      - name: Build
+        run: make
+
+  tests:
+    name: Unit Tests & Coverage
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ meson ninja-build pkg-config libffi-dev python3-pip
+      - name: Install Criterion
+        run: |
+          git clone --recursive https://github.com/Snaipe/Criterion /tmp/criterion
+          meson setup /tmp/criterion/build /tmp/criterion
+          ninja -C /tmp/criterion/build
+          sudo ninja -C /tmp/criterion/build install
+          sudo ldconfig
+      - name: Install gcovr
+        run: pip3 install gcovr
+      - name: Run tests and coverage
+        run: make tests_run
+
+  valgrind:
+    name: Valgrind Memory Check
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ meson ninja-build pkg-config libffi-dev valgrind
+      - name: Install Criterion
+        run: |
+          git clone --recursive https://github.com/Snaipe/Criterion /tmp/criterion
+          meson setup /tmp/criterion/build /tmp/criterion
+          ninja -C /tmp/criterion/build
+          sudo ninja -C /tmp/criterion/build install
+          sudo ldconfig
+      - name: Build test binary
+        run: make stone_analysis_tests
+      - name: Run Valgrind on test suite
+        run: |
+          valgrind \
+            --error-exitcode=1 \
+            --leak-check=full \
+            --show-leak-kinds=all \
+            --track-origins=yes \
+            ./stone_analysis_tests
+
+  functional:
+    name: Functional Tests
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install compiler
+        run: sudo apt-get update && sudo apt-get install -y g++
+      - name: Build
+        run: make
+      - name: Run functional tests
+        run: bash tests/functional.sh
+
+  docs:
+    name: Deploy Docs to GitHub Pages
+    runs-on: ubuntu-22.04
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Doxygen and Graphviz
+        run: sudo apt-get update && sudo apt-get install -y doxygen graphviz
+      - name: Generate Doxygen HTML
+        run: doxygen Doxyfile
+      - name: Assemble site
+        run: |
+          mkdir -p _site/api
+          cp -r docs/doxygen/html/. _site/api/
+          cp docs/index.html _site/index.html
+          cp docs/architecture.html _site/architecture.html
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
