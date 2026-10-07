@@ -1,12 +1,3 @@
-> **Epitech · `G-CNA-400` ("stoneanalysis")** — solo project.
->
-> **My role:** I designed and wrote all of it.
->
-> This repository is my own copy of the assignment, published as a portfolio
-> piece. The original repository is private.
-
----
-
 # stone_analysis
 
 **Documentation:** [https://epitechpge2-2025.github.io/G-CNA-400-LIL-4-1-stoneanalysis-7/](https://epitechpge2-2025.github.io/G-CNA-400-LIL-4-1-stoneanalysis-7/)
@@ -18,6 +9,13 @@ A CLI tool that reads 16-bit mono WAV PCM files (48 kHz) and performs three oper
 - **Decypher** — extracts a hidden message from a WAV file
 
 All signal processing (DFT, IDFT, steganography) is implemented from scratch. No audio, FFT, or steganography libraries are used.
+
+> **Epitech · `G-CNA-400` ("stoneanalysis")** — solo project.
+>
+> **My role:** I designed and wrote all of it.
+>
+> This repository is my own copy of the assignment, published as a portfolio
+> piece. The original repository is private.
 
 ---
 
